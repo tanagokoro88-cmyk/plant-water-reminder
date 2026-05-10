@@ -6,15 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, sans-serif;
       margin: 0;
       padding: 16px;
       background: #f5f7f8;
       color: #222;
-    }
-    h1 {
-      font-size: 1.4rem;
-      margin-bottom: 12px;
     }
     .container {
       max-width: 600px;
@@ -23,23 +19,26 @@
     .card {
       background: #fff;
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 12px;
       margin-bottom: 10px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    .plant-header {
       display: flex;
-      justify-content: space-between;
+      gap: 12px;
       align-items: center;
-      margin-bottom: 4px;
+    }
+    .thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #e0e0e0;
+    }
+    .plant-info {
+      flex: 1;
     }
     .plant-name {
       font-weight: 600;
       font-size: 1rem;
-    }
-    .next {
-      font-size: 0.85rem;
-      color: #555;
     }
     .badge {
       display: inline-block;
@@ -65,39 +64,16 @@
       background: #4caf50;
       color: #fff;
     }
-    button.secondary {
-      background: #e0e0e0;
-      color: #333;
-    }
     button.danger {
       background: #e53935;
     }
-    form {
-      margin-top: 16px;
-    }
-    label {
-      display: block;
-      font-size: 0.85rem;
-      margin-bottom: 4px;
-    }
     input {
       width: 100%;
-      box-sizing: border-box;
       padding: 6px 8px;
       margin-bottom: 10px;
       border-radius: 6px;
       border: 1px solid #ccc;
       font-size: 0.9rem;
-    }
-    .actions {
-      display: flex;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .empty {
-      font-size: 0.9rem;
-      color: #777;
-      margin-top: 8px;
     }
   </style>
 </head>
@@ -107,172 +83,179 @@
 
     <div id="plant-list"></div>
 
-    <p class="empty" id="empty-message" style="display:none;">
-      まだ植物が登録されていません。
-    </p>
-
     <hr />
 
     <h2 style="font-size:1rem;">植物を追加</h2>
     <form id="add-form">
-      <label for="name">植物名</label>
-      <input id="name" type="text" required placeholder="例：モンステラ" />
+      <label>植物名</label>
+      <input id="name" type="text" required />
 
-      <label for="interval">水やり間隔（日）</label>
-      <input id="interval" type="number" min="1" required placeholder="例：7" />
+      <label>水やり間隔（日）</label>
+      <input id="interval" type="number" min="1" required />
+
+      <label>写真（任意）</label>
+      <input id="photo" type="file" accept="image/*" />
 
       <button type="submit">追加する</button>
     </form>
   </div>
 
   <script>
-    // ---- データの読み書き ----
     function loadPlants() {
       return JSON.parse(localStorage.getItem("plants") || "[]");
     }
-
     function savePlants(plants) {
       localStorage.setItem("plants", JSON.stringify(plants));
     }
 
-    // ---- 日付関連 ----
     function todayISO() {
       return new Date().toISOString().split("T")[0];
     }
-
     function addDays(dateStr, days) {
       const d = new Date(dateStr);
       d.setDate(d.getDate() + days);
       return d.toISOString().split("T")[0];
     }
-
     function diffDays(from, to) {
-      const a = new Date(from);
-      const b = new Date(to);
-      return Math.round((b - a) / (1000 * 60 * 60 * 24));
+      return Math.round((new Date(to) - new Date(from)) / 86400000);
     }
 
-    // ---- 描画 ----
     function render() {
-      const listEl = document.getElementById("plant-list");
-      const emptyEl = document.getElementById("empty-message");
+      const list = document.getElementById("plant-list");
+      list.innerHTML = "";
       const plants = loadPlants();
-      listEl.innerHTML = "";
+      const today = todayISO();
 
-      if (plants.length === 0) {
-        emptyEl.style.display = "block";
-        return;
-      } else {
-        emptyEl.style.display = "none";
+      plants.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const img = document.createElement("img");
+        img.className = "thumb";
+        img.src = p.photo || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMmMtNS41IDAtMTAgNC41LTEwIDEwczQuNSAxMCAxMCAxMCAxMC00LjUgMTAtMTAtNC41LTEwLTEwLTEwem0wIDE4Yy00LjQxIDAtOC0zLjU5LTgtOHMzLjU5LTggOC04IDggMy41OSA4IDgtMy41OSA4LTggOHoiLz48L3N2Zz4=";
+        card.appendChild(img);
+
+        const info = document.createElement("div");
+        info.className = "plant-info";
+
+        const name = document.createElement("div");
+        name.className = "plant-name";
+        name.textContent = p.name;
+
+        const daysLeft = diffDays(today, p.nextWatering);
+        const badge = document.createElement("span");
+        badge.className = "badge " + (daysLeft <= 0 ? "badge-danger" : "badge-ok");
+        badge.textContent = daysLeft <= 0 ? "水やりのタイミング！" : `あと ${daysLeft} 日`;
+        name.appendChild(badge);
+
+        info.appendChild(name);
+
+        const next = document.createElement("div");
+        next.textContent = `次の水やり：${p.nextWatering}`;
+        info.appendChild(next);
+
+        const last = document.createElement("div");
+        last.textContent = `最後に水やり：${p.lastWatered}`;
+        info.appendChild(last);
+
+        const btn = document.createElement("button");
+        btn.textContent = "水やりした";
+        btn.onclick = () => water(p.id);
+        info.appendChild(btn);
+
+        const changePhotoBtn = document.createElement("button");
+        changePhotoBtn.textContent = "写真を変更";
+        changePhotoBtn.style.marginLeft = "8px";
+        changePhotoBtn.onclick = () => changePhoto(p.id);
+        info.appendChild(changePhotoBtn);
+
+        const del = document.createElement("button");
+        del.textContent = "削除";
+        del.className = "danger";
+        del.style.marginLeft = "8px";
+        del.onclick = () => remove(p.id);
+        info.appendChild(del);
+
+        card.appendChild(info);
+        list.appendChild(card);
+      });
+    }
+
+    function water(id) {
+      const plants = loadPlants();
+      const p = plants.find(x => x.id === id);
+      const today = todayISO();
+      p.lastWatered = today;
+      p.nextWatering = addDays(today, p.interval);
+      savePlants(plants);
+      render();
+    }
+
+    function remove(id) {
+      savePlants(loadPlants().filter(p => p.id !== id));
+      render();
+    }
+
+    async function changePhoto(id) {
+      const plants = loadPlants();
+      const plant = plants.find(p => p.id === id);
+      if (!plant) return;
+
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        const base64 = await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+
+        plant.photo = base64;
+        savePlants(plants);
+        render();
+      };
+
+      input.click();
+    }
+
+    document.getElementById("add-form").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const interval = Number(document.getElementById("interval").value);
+      const file = document.getElementById("photo").files[0];
+
+      let photoBase64 = null;
+      if (file) {
+        photoBase64 = await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
       }
 
       const today = todayISO();
-
-      plants
-        .sort((a, b) => (a.nextWatering || "") > (b.nextWatering || "") ? 1 : -1)
-        .forEach(plant => {
-          const card = document.createElement("div");
-          card.className = "card";
-
-          const header = document.createElement("div");
-          header.className = "plant-header";
-
-          const name = document.createElement("div");
-          name.className = "plant-name";
-          name.textContent = plant.name;
-
-          const badge = document.createElement("span");
-          const daysLeft = diffDays(today, plant.nextWatering);
-          if (daysLeft <= 0) {
-            badge.className = "badge badge-danger";
-            badge.textContent = "水やりのタイミング！";
-          } else {
-            badge.className = "badge badge-ok";
-            badge.textContent = `あと ${daysLeft} 日`;
-          }
-          name.appendChild(badge);
-
-          header.appendChild(name);
-          card.appendChild(header);
-
-          const next = document.createElement("div");
-          next.className = "next";
-          next.textContent = `次の水やり：${plant.nextWatering}（間隔：${plant.interval}日）`;
-          card.appendChild(next);
-
-          const last = document.createElement("div");
-          last.className = "next";
-          last.textContent = `最後に水やり：${plant.lastWatered}`;
-          card.appendChild(last);
-
-          const actions = document.createElement("div");
-          actions.className = "actions";
-
-          const waterBtn = document.createElement("button");
-          waterBtn.textContent = "水やりした";
-          waterBtn.onclick = () => waterPlant(plant.id);
-
-          const deleteBtn = document.createElement("button");
-          deleteBtn.textContent = "削除";
-          deleteBtn.className = "secondary danger";
-          deleteBtn.onclick = () => deletePlant(plant.id);
-
-          actions.appendChild(waterBtn);
-          actions.appendChild(deleteBtn);
-          card.appendChild(actions);
-
-          listEl.appendChild(card);
-        });
-    }
-
-    // ---- 操作 ----
-    function waterPlant(id) {
       const plants = loadPlants();
-      const idx = plants.findIndex(p => p.id === id);
-      if (idx === -1) return;
-
-      const today = todayISO();
-      plants[idx].lastWatered = today;
-      plants[idx].nextWatering = addDays(today, Number(plants[idx].interval));
-      savePlants(plants);
-      render();
-    }
-
-    function deletePlant(id) {
-      const plants = loadPlants().filter(p => p.id !== id);
-      savePlants(plants);
-      render();
-    }
-
-    // ---- フォーム処理 ----
-    document.getElementById("add-form").addEventListener("submit", e => {
-      e.preventDefault();
-      const nameInput = document.getElementById("name");
-      const intervalInput = document.getElementById("interval");
-
-      const name = nameInput.value.trim();
-      const interval = Number(intervalInput.value);
-
-      if (!name || !interval || interval <= 0) return;
-
-      const plants = loadPlants();
-      const today = todayISO();
 
       plants.push({
         id: Date.now(),
         name,
         interval,
         lastWatered: today,
-        nextWatering: addDays(today, interval)
+        nextWatering: addDays(today, interval),
+        photo: photoBase64
       });
 
       savePlants(plants);
-      nameInput.value = "";
-      intervalInput.value = "";
+      e.target.reset();
       render();
     });
 
-    // 初期表示
     render();
   </script>
 </body>
